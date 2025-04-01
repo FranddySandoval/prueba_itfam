@@ -36,12 +36,12 @@ try {
     exit;
 }
 
+$responseFound = false;
+
 // Primero, se revisa la tabla 'faqs'
 $stmt = $pdo->prepare("SELECT * FROM faqs");
 $stmt->execute();
 $faqs = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$responseFound = false;
 
 foreach ($faqs as $faq) {
     // Normalizamos la pregunta principal
@@ -66,13 +66,27 @@ if (!$responseFound) {
     $keywords = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($keywords as $row) {
-         // Normalizamos la palabra clave
+         // Normalizamos la palabra clave principal
          $normalizedKeyword = normalizeText($row['keyword']);
-         // Verifica si la palabra clave se encuentra en el mensaje del usuario
+         // Normalizamos la palabra clave extra, si existe
+         $extraKeyword = isset($row['extra_keyword']) ? normalizeText($row['extra_keyword']) : '';
+
+         // Verifica si la palabra principal se encuentra en el mensaje del usuario
          if (strpos($userMessage, $normalizedKeyword) !== false) {
-              echo json_encode(["reply" => $row['answer']]);
-              $responseFound = true;
-              break;
+              // Si se requiere una palabra extra
+              if (!empty($extraKeyword)) {
+                  // Solo responde si además se encuentra la palabra extra en el mensaje
+                  if (strpos($userMessage, $extraKeyword) !== false) {
+                      echo json_encode(["reply" => $row['answer']]);
+                      $responseFound = true;
+                      break;
+                  }
+              } else {
+                  // Si no se requiere palabra extra, responde normalmente
+                  echo json_encode(["reply" => $row['answer']]);
+                  $responseFound = true;
+                  break;
+              }
          }
     }
 }
@@ -82,4 +96,3 @@ if (!$responseFound) {
     echo json_encode(["reply" => "Lo siento, no tengo información sobre eso."]);
 }
 ?>
-
